@@ -1,216 +1,982 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- =========================================================
+       SBA Logic — Single-file HTML app for GitHub Pages
+       Minimalist pastel theme • Wizard • PDF/Word export
+       ========================================================= -->
+
+  <!-- Google Analytics (replace with your GA4 ID) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    /* GA: make gtag available early */
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    window.addEventListener("DOMContentLoaded", function(){
+      gtag("js", new Date());
+      gtag("config", "G-XXXXXXXXXX", { debug_mode: true });
+    });
+  </script>
+
   <meta charset="UTF-8" />
-  <title>SBA Logic: Business Plan Wizard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Tailwind CSS & Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SBA Logic — Business Plan Wizard</title>
+
+  <!-- Fonts & Tailwind CDN -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            serif: ['Playfair Display', 'Georgia', 'serif']
+          },
+          colors: {
+            baby: {
+              50:  '#f4fbff',
+              100: '#e9f7ff',
+              200: '#cfeeff',
+              300: '#b2e3ff',
+              400: '#8fd6ff',
+              500: '#69c6ff',
+              600: '#47a9e6',
+              700: '#3586b8',
+              800: '#2b6a92',
+              900: '#255a7a',
+            },
+            mint: {
+              50: '#effef7',
+              100: '#d9f9ea',
+              200: '#b7f0d8',
+              300: '#8fe5c4',
+              400: '#66d7ad',
+              500: '#40c997',
+              600: '#2aa47a',
+              700: '#207f5f',
+              800: '#1b684f',
+              900: '#165241'
+            },
+            blush: {
+              50: '#fff6f8',
+              100: '#ffe9ee',
+              200: '#ffcfdc',
+              300: '#ffacc3',
+              400: '#ff86a8',
+              500: '#ff6a93',
+              600: '#e44a77',
+              700: '#c33661',
+              800: '#9d2b4f',
+              900: '#7f2642'
+            }
+          },
+          boxShadow: {
+            soft: '0 10px 30px rgba(37, 90, 122, .08)'
+          },
+          keyframes: {
+            fadeInUp: { from: { opacity: 0, transform: 'translateY(10px)'}, to: { opacity: 1, transform: 'translateY(0)'}},
+            fadeIn: { from: { opacity: 0 }, to: { opacity: 1 }},
+            scaleUp: { from: { transform: 'scale(0)' }, to: { transform: 'scale(1)' } },
+            marquee: { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(-50%)' } }
+          },
+          animation: {
+            fadeInUp: 'fadeInUp .6s ease both',
+            fadeIn: 'fadeIn .5s ease both',
+            scaleUp: 'scaleUp .7s ease-out both',
+            marquee: 'marquee 18s linear infinite'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- jsPDF & html2canvas for PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <!-- ===== App styles (animations kept separate) ===== -->
   <style>
-    html, body { font-family: 'Inter', sans-serif; background: #f3f8fd;}
-    .fade { transition: opacity 0.7s, transform 0.7s;}
-    .fade-out { opacity: 0; transform: scale(0.98) translateY(40px);}
-    .fade-in { opacity: 1; transform: scale(1) translateY(0);}
+    /* ---- Global/utility ---- */
+    .app-hero-gradient {
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(105,198,255,.25), transparent),
+                  radial-gradient(1200px 600px at 90% 10%, rgba(102,215,173,.25), transparent),
+                  radial-gradient(1200px 600px at 50% 110%, rgba(255,134,168,.15), transparent);
+    }
+    .card {
+      background: white;
+      border-radius: 1.25rem;
+      box-shadow: 0 10px 30px rgba(37,90,122,.08);
+      border: 1px solid rgba(140, 170, 190, .18);
+    }
     .slide { display: none; }
     .slide.active { display: block; }
-    .wizard-anim { animation: wizardIn 1s cubic-bezier(.8,0,.25,1) forwards;}
-    @keyframes wizardIn { 0%{opacity:0;transform:scale(.92) translateY(64px);} 100%{opacity:1;transform:none;} }
-    /* Carousel placeholder */
-    .carousel-ad {background:linear-gradient(90deg,#bbeafe 50%,#f4e1fb 100%);}
-    .ad-slide {width:100%;height:70px;display:flex;align-items:center;justify-content:center;color:#2563eb;font-weight:700;font-size:1.15rem;}
+
+    /* ---- Big transition animation from Home -> Wizard ---- */
+    .reveal-overlay {
+      position: fixed; inset: 0; pointer-events: none; z-index: 40; overflow: hidden;
+      clip-path: circle(0% at 85% 90%);
+      background: radial-gradient(800px 800px at 85% 90%, rgba(105,198,255,.85), rgba(64,201,151,.85) 60%, rgba(255,255,255,.95) 100%);
+      transition: clip-path .9s cubic-bezier(.2,.8,.2,1);
+    }
+    .reveal-overlay.revealed {
+      clip-path: circle(140% at 85% 90%);
+    }
+
+    /* ---- Ad carousel ---- */
+    .ad-track {
+      display: flex; gap: 1rem; width: max-content;
+      animation: marquee 26s linear infinite;
+    }
+    .ad-item {
+      min-width: 280px; height: 120px;
+      border-radius: 1rem; background: linear-gradient(135deg, #e9f7ff, #fff6f8);
+      border: 1px dashed #b2e3ff; display: grid; place-items: center;
+      color: #255a7a; font-weight: 600;
+    }
+    .ad-wrap { mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+
+    /* ---- Tip bubbles ---- */
+    .tip {
+      border-left: 4px solid;
+      border-radius: .75rem;
+      padding: .75rem .9rem;
+      background: #f4fbff;
+    }
+
+    /* ---- Progress bar ---- */
+    .progress {
+      height: .45rem; background: #d9f9ea; border-radius: 999px; overflow: hidden;
+    }
+    .progress-inner {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #69c6ff, #40c997);
+      transition: width .35s ease;
+    }
+
+    /* ---- Sticky honesty banner ---- */
+    .honesty {
+      position: sticky; top: .5rem; z-index: 10;
+      background: #fff6f8; border: 1px solid #ffcfdc; color: #7f2642;
+      border-radius: .75rem; padding: .6rem .9rem;
+    }
+
+    /* ---- Slide in / staged elements ---- */
+    [data-animate] { opacity: 0; transform: translateY(8px); }
+    .in-view { opacity: 1; transform: translateY(0); transition: all .5s ease; }
+
+    /* ---- Printable preview styling ---- */
+    #planPreview {
+      width: 900px; background: white; border: 1px solid #e5eef5;
+      margin-inline: auto; border-radius: .75rem; overflow: hidden;
+      font-family: Inter, system-ui, sans-serif;
+    }
+    .preview-header {
+      background: linear-gradient(135deg, #e9f7ff, #d9f9ea);
+      padding: 24px;
+    }
+    .preview-section {
+      padding: 20px 24px; border-top: 1px solid #f0f5fa;
+    }
+    .preview-section h3 {
+      margin: 0 0 6px 0; font-family: "Playfair Display", serif;
+    }
+    .kicker { letter-spacing: .08em; font-size: .72rem; text-transform: uppercase; color: #3586b8; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; color: #255a7a; }
   </style>
 </head>
-<body class="min-h-screen flex flex-col">
-  <!-- Home Page -->
-  <main id="home" class="fade fade-in flex flex-col items-center justify-center min-h-screen">
-    <header class="w-full max-w-2xl mt-10 mb-6 text-center">
-      <h1 class="text-4xl md:text-5xl font-bold text-blue-700 mb-3 tracking-tight">SBA Logic</h1>
-      <p class="text-lg md:text-xl text-blue-800">Step-by-step business plan wizard for SBA loan & grant applications</p>
-    </header>
-    <section class="bg-white rounded-2xl shadow-md max-w-2xl w-full p-7 mb-7">
-      <h2 class="text-xl font-semibold text-blue-600 mb-2">What is SBA Logic?</h2>
-      <p class="mb-2 text-slate-700">SBA Logic guides you through writing a complete business plan, using <span class="font-medium">official SBA-recommended structure</span> and logic tools to make your plan persuasive—while emphasizing <span class="font-semibold text-blue-800">honesty</span> in every section.</p>
-      <ul class="text-slate-600 text-base mb-4 pl-6 list-disc">
-        <li>Clear steps for every business plan section</li>
-        <li>Tips on pitching, structure, and evidence</li>
-        <li>Download as PDF or Word—ready to submit</li>
-      </ul>
-      <h3 class="text-blue-600 mt-4 mb-2 font-semibold">How it works</h3>
-      <ol class="text-slate-700 pl-5 list-decimal space-y-1">
-        <li>Start the wizard—one section at a time</li>
-        <li>Read short tips with each prompt (with simple logic/argument pointers!)</li>
-        <li>Preview and download your final business plan instantly</li>
-      </ol>
-    </section>
-    <!-- Carousel Ads Placeholder -->
-    <div class="carousel-ad w-full max-w-2xl rounded-xl mb-10 flex overflow-hidden">
-      <div class="ad-slide animate-pulse">Partner Ad 1 Placeholder</div>
-      <div class="ad-slide hidden">Partner Ad 2 Placeholder</div>
+
+<body class="bg-baby-50 text-slate-800 selection:bg-baby-200/70">
+  <!-- =========================================================
+       HOME
+       ========================================================= -->
+  <header class="app-hero-gradient">
+    <div class="max-w-6xl mx-auto px-5 pt-10 pb-14">
+      <div class="grid md:grid-cols-2 gap-8 items-center">
+        <div class="space-y-4">
+          <p class="kicker">Free tool for SBA loan/grant readiness</p>
+          <h1 class="text-4xl md:text-5xl font-extrabold text-baby-900 tracking-tight font-serif">
+            SBA Logic
+          </h1>
+          <p class="text-baby-900/80 text-lg leading-relaxed">
+            A minimalist, step-by-step wizard that helps you draft a
+            <span class="font-semibold">bank-ready Business Plan</span> aligned with what lenders screen for:
+            clarity of product, customers, market evidence, pricing, and execution. Built-in
+            <em>argument tips</em> guide you to make claims, back them with evidence, and stay honest.
+          </p>
+          <ul class="text-sm text-slate-600 space-y-1">
+            <li>• Structure mirrors common SBA-aligned business plan sections.</li>
+            <li>• Exports to <span class="font-semibold">PDF</span> or <span class="font-semibold">Word (.doc)</span>.</li>
+            <li>• No sign-in. No data saved. Everything runs in your browser.</li>
+          </ul>
+          <div class="flex items-center gap-3 pt-2">
+            <button id="startBtn"
+              class="px-5 py-3 rounded-2xl bg-baby-500 text-white font-semibold shadow-soft hover:bg-baby-600 transition">
+              Start the Wizard
+            </button>
+            <span class="text-xs text-slate-500">Takes ~10–20 minutes</span>
+          </div>
+        </div>
+
+        <!-- Home card: How it works -->
+        <div class="card p-6 md:p-7 animate-fadeInUp">
+          <h2 class="font-semibold text-baby-900 text-xl mb-3">How it works</h2>
+          <ol class="list-decimal pl-5 space-y-2 text-sm">
+            <li><span class="font-medium">Walkthrough:</span> each section explains what lenders look for.</li>
+            <li><span class="font-medium">Write:</span> simple inputs with prompts & argument tips.</li>
+            <li><span class="font-medium">Review:</span> preview your plan, then export PDF/Word.</li>
+          </ol>
+          <div class="mt-5 grid sm:grid-cols-3 gap-3 text-xs">
+            <div class="tip border-baby-500">💡 <span class="font-semibold">Argument Tip:</span> Claim → Reason → Evidence → Address risks.</div>
+            <div class="tip border-mint-500 bg-mint-50">🔎 <span class="font-semibold">Lenders:</span> consistency across product, market, and pricing.</div>
+            <div class="tip border-blush-500 bg-blush-50">🤝 <span class="font-semibold">Honesty:</span> transparent risks improve credibility.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Partner ad carousel placeholders -->
+      <div class="mt-10">
+        <div class="flex items-center justify-between mb-2">
+          <p class="kicker">Partner carousel (placeholders)</p>
+          <span class="text-xs text-slate-500">For Chambers & local orgs</span>
+        </div>
+        <div class="relative overflow-hidden ad-wrap card p-4">
+          <div class="ad-track">
+            <div class="ad-item">Your Chamber Ad #1</div>
+            <div class="ad-item">Local Bank Partner</div>
+            <div class="ad-item">SBDC / SCORE Mentor</div>
+            <div class="ad-item">City Grants Portal</div>
+            <div class="ad-item">Workforce Board</div>
+            <div class="ad-item">Your Chamber Ad #2</div>
+            <!-- duplicate for seamless loop -->
+            <div class="ad-item">Your Chamber Ad #1</div>
+            <div class="ad-item">Local Bank Partner</div>
+            <div class="ad-item">SBDC / SCORE Mentor</div>
+            <div class="ad-item">City Grants Portal</div>
+            <div class="ad-item">Workforce Board</div>
+            <div class="ad-item">Your Chamber Ad #2</div>
+          </div>
+        </div>
+      </div>
     </div>
-    <button id="startBtn" class="mt-2 px-8 py-4 bg-blue-600 text-white text-xl rounded-2xl font-bold shadow-lg hover:bg-blue-700 transition-all"
-      onclick="startWizard()">Start the Wizard</button>
-    <footer class="mt-16 text-slate-400 text-sm">Built for chambers of commerce & business support—free forever.</footer>
+  </header>
+
+  <!-- Animated overlay for transition -->
+  <div id="reveal" class="reveal-overlay" aria-hidden="true"></div>
+
+  <!-- =========================================================
+       WIZARD
+       ========================================================= -->
+  <main id="wizard" class="max-w-5xl mx-auto px-4 md:px-6 -mt-8 pb-24 hidden">
+    <!-- Sticky honesty banner -->
+    <div class="honesty card -mt-6 mb-4">
+      🔒 <span class="font-semibold">Integrity reminder:</span> Be accurate and candid. Overstatements are detected in underwriting and can harm approvals.
+    </div>
+
+    <!-- Progress -->
+    <div class="progress card p-0 mb-6">
+      <div id="progressInner" class="progress-inner"></div>
+    </div>
+
+    <form id="planForm" class="space-y-6">
+      <!-- ===== 0: Intro ===== -->
+      <section id="s-0" class="slide active card p-6">
+        <h2 class="text-2xl font-bold text-baby-900 font-serif mb-2">Welcome to SBA Logic</h2>
+        <p class="text-slate-600">This wizard mirrors a common SBA-aligned plan structure with tips at each step.</p>
+        <div class="grid md:grid-cols-3 gap-3 mt-4">
+          <div class="tip border-baby-500">🎯 <span class="font-semibold">Goal:</span> show viability with evidence & clear execution.</div>
+          <div class="tip border-mint-500 bg-mint-50">🔍 <span class="font-semibold">Lenders look for:</span> cash flow realism, target market proof, pricing logic.</div>
+          <div class="tip border-blush-500 bg-blush-50">🧠 <span class="font-semibold">Argument Tip:</span> State a claim, give reasons, offer evidence, acknowledge risks.</div>
+        </div>
+        <div class="mt-6 flex justify-end">
+          <button type="button" class="px-5 py-2.5 bg-baby-500 text-white rounded-xl hover:bg-baby-600" onclick="nextSlide()">Begin</button>
+        </div>
+      </section>
+
+      <!-- ===== 1: Product ===== -->
+      <section id="s-1" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Product / Service</h2>
+        <p class="text-slate-600 text-sm mb-4">Describe what you sell and why it solves a real pain. Be specific.</p>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Short positioning (1–2 sentences)</label>
+            <textarea id="productShort" rows="3" class="w-full border rounded-lg p-2" placeholder="e.g., We provide office management and process reengineering to reduce administrative costs."></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Detailed description</label>
+            <textarea id="productDetail" rows="6" class="w-full border rounded-lg p-2" placeholder="List specific services and how they create value."></textarea>
+          </div>
+        </div>
+        <div class="grid md:grid-cols-3 gap-3 mt-4 text-xs">
+          <div class="tip border-baby-500">🔎 <span class="font-semibold">Lenders:</span> Is the offer clear & non-technical?</div>
+          <div class="tip border-mint-500 bg-mint-50">📏 <span class="font-semibold">Evidence:</span> cost savings, time reduction, testimonials.</div>
+          <div class="tip border-blush-500 bg-blush-50">🧩 <span class="font-semibold">Logic:</span> Avoid vague claims; tie features → benefits → outcomes.</div>
+        </div>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 2: Customers (target & detail) ===== -->
+      <section id="s-2" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Customers</h2>
+        <p class="text-slate-600 text-sm mb-4">Define who you serve. Narrow beats broad.</p>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Target audience (short)</label>
+            <textarea id="customersShort" rows="3" class="w-full border rounded-lg p-2" placeholder="e.g., HR directors, program managers, CEOs (5–500 employees)."></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Detailed customer description</label>
+            <textarea id="customersDetail" rows="6" class="w-full border rounded-lg p-2" placeholder="Include industries, pains, and purchase triggers."></textarea>
+          </div>
+        </div>
+        <div class="grid md:grid-cols-3 gap-3 mt-4 text-xs">
+          <div class="tip border-baby-500">📊 <span class="font-semibold">Lenders:</span> Is the ICP concrete (titles, size, region)?</div>
+          <div class="tip border-mint-500 bg-mint-50">🧾 <span class="font-semibold">Evidence:</span> customer lists, LOIs, pipeline.</div>
+          <div class="tip border-blush-500 bg-blush-50">🧠 <span class="font-semibold">Logic:</span> Show how pains map to your features.</div>
+        </div>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 3: Future of the Company ===== -->
+      <section id="s-3" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Future of the Company</h2>
+        <p class="text-slate-600 text-sm mb-4">Where you’re headed: offerings, milestones, and learnings.</p>
+        <textarea id="futureCompany" rows="6" class="w-full border rounded-lg p-2" placeholder="Planned services, expansion, and why they make sense given your capabilities and demand."></textarea>
+        <div class="grid md:grid-cols-3 gap-3 mt-4 text-xs">
+          <div class="tip border-baby-500">🧭 <span class="font-semibold">Lenders:</span> Realistic growth, not hype.</div>
+          <div class="tip border-mint-500 bg-mint-50">🗺️ <span class="font-semibold">Evidence:</span> pilot results, roadmap, capacity plans.</div>
+          <div class="tip border-blush-500 bg-blush-50">⚖️ <span class="font-semibold">Honesty:</span> name constraints & how you’ll mitigate them.</div>
+        </div>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 4: Company Description — Mission ===== -->
+      <section id="s-4" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Company Description — Mission</h2>
+        <textarea id="mission" rows="4" class="w-full border rounded-lg p-2" placeholder="e.g., Provide quality services that help clients prosper and grow."></textarea>
+        <div class="grid md:grid-cols-2 gap-3 mt-4 text-xs">
+          <div class="tip border-baby-500">🎯 <span class="font-semibold">Lenders:</span> Mission aligned to target customer need.</div>
+          <div class="tip border-mint-500 bg-mint-50">🔗 <span class="font-semibold">Logic:</span> Tie mission → product → outcomes.</div>
+        </div>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 5: Company Description — Principal Members ===== -->
+      <section id="s-5" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Company Description — Principal Members</h2>
+        <p class="text-sm text-slate-600 mb-2">Add key team members (role & strengths).</p>
+        <div id="teamList" class="space-y-3"></div>
+        <button type="button" class="mt-3 px-3 py-1.5 bg-mint-500 text-white rounded-lg" onclick="addTeam()">Add member</button>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 6: Company Description — Legal Structure ===== -->
+      <section id="s-6" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Company Description — Legal Structure</h2>
+        <div class="grid md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Entity type</label>
+            <select id="legalType" class="w-full border rounded-lg p-2">
+              <option value="">Select...</option>
+              <option>Sole Proprietorship</option>
+              <option>LLC</option>
+              <option>S Corporation</option>
+              <option>C Corporation</option>
+              <option>Partnership</option>
+              <option>Nonprofit</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">State</label>
+            <input id="legalState" class="w-full border rounded-lg p-2" placeholder="e.g., South Carolina"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">City</label>
+            <input id="legalCity" class="w-full border rounded-lg p-2" placeholder="e.g., Greenville"/>
+          </div>
+        </div>
+        <div class="grid md:grid-cols-2 gap-3 mt-4 text-xs">
+          <div class="tip border-baby-500">✅ <span class="font-semibold">Lenders:</span> entity, registration, & location clarity.</div>
+          <div class="tip border-mint-500 bg-mint-50">📄 <span class="font-semibold">Docs:</span> EIN, registrations, licenses (not uploaded here).</div>
+        </div>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 7: Market Research — Industry ===== -->
+      <section id="s-7" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Market Research — Industry</h2>
+        <textarea id="industry" rows="6" class="w-full border rounded-lg p-2" placeholder="Industry overview, trends, growth. Cite sources if possible."></textarea>
+        <div class="grid md:grid-cols-3 gap-3 mt-4 text-xs">
+          <div class="tip border-baby-500">📈 <span class="font-semibold">Lenders:</span> credible trend & growth story.</div>
+          <div class="tip border-mint-500 bg-mint-50">🧾 <span class="font-semibold">Evidence:</span> reports, local demand indicators.</div>
+          <div class="tip border-blush-500 bg-blush-50">🧠 <span class="font-semibold">Logic:</span> show why now/why you.</div>
+        </div>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 8: Market Research — Detailed Customers ===== -->
+      <section id="s-8" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Market Research — Detailed Description of Customers</h2>
+        <textarea id="mrCustomers" rows="6" class="w-full border rounded-lg p-2" placeholder="Build on 'Customers' with local segments, buyer journeys, and reachable accounts."></textarea>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 9: Market Research — Company Advantages ===== -->
+      <section id="s-9" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Market Research — Company Advantages</h2>
+        <textarea id="advantages" rows="6" class="w-full border rounded-lg p-2" placeholder="Certifications, methods, speed, brand, partnerships, talent."></textarea>
+        <div class="grid md:grid-cols-2 gap-3 mt-4 text-xs">
+          <div class="tip border-baby-500">🏅 <span class="font-semibold">Lenders:</span> durable edges, not easily copied.</div>
+          <div class="tip border-mint-500 bg-mint-50">🧪 <span class="font-semibold">Evidence:</span> case studies, credentials, references.</div>
+        </div>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 10: Market Research — Regulations ===== -->
+      <section id="s-10" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Market Research — Regulations</h2>
+        <textarea id="regulations" rows="5" class="w-full border rounded-lg p-2" placeholder="List relevant Federal/state regulations and how you comply."></textarea>
+        <p class="text-xs text-slate-500 mt-2">Example format: <span class="mono">CFR Title & Section</span>; state statutes; licensing requirements.</p>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 11: Service Line — Services Include ===== -->
+      <section id="s-11" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Service Line — Services Include</h2>
+        <p class="text-sm text-slate-600 mb-3">Select or add services offered.</p>
+        <div id="svcBox" class="grid sm:grid-cols-2 gap-2"></div>
+        <div class="flex gap-2 mt-3">
+          <input id="svcCustom" class="flex-1 border rounded-lg p-2" placeholder="Add custom service"/>
+          <button type="button" class="px-3 py-1.5 bg-mint-500 text-white rounded-lg" onclick="addCustomService()">Add</button>
+        </div>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 12: Service Line — Pricing Structure ===== -->
+      <section id="s-12" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Service Line — Pricing Structure</h2>
+        <p class="text-sm text-slate-600 mb-3">Edit role titles and hourly rates.</p>
+        <div id="priceTable" class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead><tr class="text-left text-slate-600">
+              <th class="py-2 pr-3">Role</th><th class="py-2 pr-3">Rate ($/hr)</th><th class="py-2">Remove</th>
+            </tr></thead>
+            <tbody id="priceBody"></tbody>
+          </table>
+        </div>
+        <div class="flex gap-2 mt-3">
+          <input id="priceRole" class="border rounded-lg p-2" placeholder="Role"/>
+          <input id="priceRate" type="number" class="border rounded-lg p-2 w-32" placeholder="Rate"/>
+          <button type="button" class="px-3 py-1.5 bg-mint-500 text-white rounded-lg" onclick="addPrice()">Add</button>
+        </div>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 13: Service Line — Lifecycle ===== -->
+      <section id="s-13" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Service Line — Product Lifecycle</h2>
+        <textarea id="lifecycle" rows="4" class="w-full border rounded-lg p-2" placeholder="Readiness, implementation phases, and support cycles."></textarea>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 14: Service Line — IP Rights ===== -->
+      <section id="s-14" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Service Line — Intellectual Property Rights</h2>
+        <textarea id="ip" rows="4" class="w-full border rounded-lg p-2" placeholder="Trademarks, proprietary processes, domains, etc."></textarea>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 15: Service Line — R&D ===== -->
+      <section id="s-15" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Service Line — Research & Development</h2>
+        <textarea id="rnd" rows="5" class="w-full border rounded-lg p-2" placeholder="Upcoming tools, analyses, or solutions to expand value."></textarea>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 16: Marketing & Sales — Growth Strategy ===== -->
+      <section id="s-16" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Marketing & Sales — Growth Strategy</h2>
+        <textarea id="growth" rows="5" class="w-full border rounded-lg p-2" placeholder="Channels, conferences, website, ads, partnerships."></textarea>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 17: Marketing & Sales — Communicate with the Customer ===== -->
+      <section id="s-17" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Marketing & Sales — Communicate with the Customer</h2>
+        <textarea id="communicate" rows="4" class="w-full border rounded-lg p-2" placeholder="Meetings, social media, contact info, responsiveness policies."></textarea>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="nextSlide()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 18: Marketing & Sales — How to Sell ===== -->
+      <section id="s-18" class="slide card p-6">
+        <h2 class="text-xl font-semibold text-baby-900 mb-1">Marketing & Sales — How to Sell</h2>
+        <textarea id="howToSell" rows="5" class="w-full border rounded-lg p-2" placeholder="Roles, process, and awareness plans."></textarea>
+        <nav class="mt-6 flex justify-between">
+          <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          <button type="button" class="px-5 py-2 bg-baby-500 text-white rounded-lg" onclick="buildPreviewAndNext()">Next</button>
+        </nav>
+      </section>
+
+      <!-- ===== 19: Preview & Export ===== -->
+      <section id="s-19" class="slide card p-0 overflow-hidden">
+        <div class="p-6 pb-0">
+          <h2 class="text-xl font-semibold text-baby-900 mb-1">Preview & Export</h2>
+          <p class="text-sm text-slate-600">Review your plan. Export as PDF or Word.</p>
+        </div>
+        <div id="planPreview" class="m-6 mb-4"></div>
+        <div class="px-6 pb-6 flex flex-wrap gap-3 justify-between">
+          <div class="flex gap-2">
+            <button type="button" class="px-4 py-2 bg-baby-100 rounded-lg" onclick="prevSlide()">Back</button>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" class="px-4 py-2 bg-mint-500 text-white rounded-lg" id="btnPDF" onclick="exportPDF()">Download PDF</button>
+            <button type="button" class="px-4 py-2 bg-baby-500 text-white rounded-lg" onclick="exportDOC()">Download Word (.doc)</button>
+          </div>
+        </div>
+      </section>
+    </form>
   </main>
 
-  <!-- Wizard -->
-  <form id="wizard" class="wizard-anim hidden mx-auto my-8 max-w-2xl w-full bg-white rounded-2xl shadow-xl p-6 fade" autocomplete="off" onsubmit="return false;">
-    <!-- Progress bar -->
-    <div class="w-full bg-blue-100 h-2 rounded mb-6"><div id="progressBar" class="h-full bg-blue-400 rounded transition-all"></div></div>
-    <!-- Slide content here, all in one place for brevity -->
-    <section class="slide active" data-slide>
-      <h2 class="text-2xl font-bold text-blue-700 mb-2">Welcome!</h2>
-      <p class="mb-5 text-blue-800">Answer a few questions and you'll get a complete, ready-to-download business plan in SBA format. The wizard will help you <span class="font-semibold">build your argument</span> step-by-step.</p>
-      <button type="button" class="px-5 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-all" onclick="nextSlide()">Begin</button>
-    </section>
-    <!-- Wizard steps: 1. Company Description -->
-    <section class="slide" data-slide>
-      <h2 class="text-xl font-bold text-blue-700 mb-1">1. Company Description</h2>
-      <div class="mb-2 text-sm text-blue-500 animate-pulse">Tip: Start with honest facts, but frame your company in a way that makes your strengths <span class="font-bold">salient</span>. What makes you valuable? (<em>Premise + Evidence</em>)</div>
-      <textarea required rows="5" class="w-full border p-2 rounded mb-2" placeholder="Describe your business, its mission, principal members, and legal structure." id="company"></textarea>
-      <div class="flex justify-between"><button type="button" class="btnNav" onclick="prevSlide()">Back</button><button type="button" class="btnNav-primary" onclick="nextSlide()">Next</button></div>
-    </section>
-    <!-- 2. Market Research -->
-    <section class="slide" data-slide>
-      <h2 class="text-xl font-bold text-blue-700 mb-1">2. Market Research</h2>
-      <div class="mb-2 text-sm text-blue-500 animate-pulse">Tip: <strong>Who</strong> is your market, and what do they need? Show you understand their world (<em>logic: audience analysis</em>). Use facts or honest estimates, and note where your info comes from.</div>
-      <textarea required rows="5" class="w-full border p-2 rounded mb-2" placeholder="Describe your market, industry, customers, and advantages." id="market"></textarea>
-      <div class="flex justify-between"><button type="button" class="btnNav" onclick="prevSlide()">Back</button><button type="button" class="btnNav-primary" onclick="nextSlide()">Next</button></div>
-    </section>
-    <!-- 3. Regulations -->
-    <section class="slide" data-slide>
-      <h2 class="text-xl font-bold text-blue-700 mb-1">3. Regulations</h2>
-      <div class="mb-2 text-sm text-blue-500 animate-pulse">Tip: Show that you’re aware of and compliant with all key regulations. (<em>Defeater: loaners need to know you aren’t missing legal steps!</em>)</div>
-      <textarea required rows="3" class="w-full border p-2 rounded mb-2" placeholder="List key regulations you comply with." id="regulations"></textarea>
-      <div class="flex justify-between"><button type="button" class="btnNav" onclick="prevSlide()">Back</button><button type="button" class="btnNav-primary" onclick="nextSlide()">Next</button></div>
-    </section>
-    <!-- 4. Service Line -->
-    <section class="slide" data-slide>
-      <h2 class="text-xl font-bold text-blue-700 mb-1">4. Product/Service Line</h2>
-      <div class="mb-2 text-sm text-blue-500 animate-pulse">Tip: Make your offerings <strong>concrete</strong>. Give specifics, not just buzzwords. (Loaners want clarity: "What will you actually do or sell?")</div>
-      <textarea required rows="4" class="w-full border p-2 rounded mb-2" placeholder="List and describe your products or services. Include pricing structure if known." id="services"></textarea>
-      <div class="flex justify-between"><button type="button" class="btnNav" onclick="prevSlide()">Back</button><button type="button" class="btnNav-primary" onclick="nextSlide()">Next</button></div>
-    </section>
-    <!-- 5. Intellectual Property & R&D -->
-    <section class="slide" data-slide>
-      <h2 class="text-xl font-bold text-blue-700 mb-1">5. IP &amp; R&D</h2>
-      <div class="mb-2 text-sm text-blue-500 animate-pulse">Tip: Do you have unique assets (name, process, tech)? Is there any ongoing research or new product development?</div>
-      <textarea required rows="3" class="w-full border p-2 rounded mb-2" placeholder="Describe trademarks, patents, tech, and any research/development." id="ip"></textarea>
-      <div class="flex justify-between"><button type="button" class="btnNav" onclick="prevSlide()">Back</button><button type="button" class="btnNav-primary" onclick="nextSlide()">Next</button></div>
-    </section>
-    <!-- 6. Marketing & Sales -->
-    <section class="slide" data-slide>
-      <h2 class="text-xl font-bold text-blue-700 mb-1">6. Marketing &amp; Sales</h2>
-      <div class="mb-2 text-sm text-blue-500 animate-pulse">Tip: How will you <span class="font-bold">reach</span> your customers? Show logical connection from your market analysis to your plan. (<em>If your audience is X, how do you find them?</em>)</div>
-      <textarea required rows="4" class="w-full border p-2 rounded mb-2" placeholder="Explain how you will find, communicate with, and sell to your customers." id="marketing"></textarea>
-      <div class="flex justify-between"><button type="button" class="btnNav" onclick="prevSlide()">Back</button><button type="button" class="btnNav-primary" onclick="nextSlide()">Next</button></div>
-    </section>
-    <!-- 7. Future & Growth -->
-    <section class="slide" data-slide>
-      <h2 class="text-xl font-bold text-blue-700 mb-1">7. Future &amp; Growth</h2>
-      <div class="mb-2 text-sm text-blue-500 animate-pulse">Tip: Show ambition but stay honest. Your “future” plan is a <em>hypothesis</em>: back it up with logic or reasonable evidence if possible.</div>
-      <textarea required rows="3" class="w-full border p-2 rounded mb-2" placeholder="Share your vision for growth and future development." id="future"></textarea>
-      <div class="flex justify-between"><button type="button" class="btnNav" onclick="prevSlide()">Back</button><button type="button" class="btnNav-primary" onclick="nextSlide()">Next</button></div>
-    </section>
-    <!-- 8. Honest Pitch (Final Summary & Emphasis on Truthfulness) -->
-    <section class="slide" data-slide>
-      <h2 class="text-xl font-bold text-blue-700 mb-1">8. Pitch & Honesty Check</h2>
-      <div class="mb-2 text-sm text-blue-500 animate-bounce">Tip: Your argument is only as strong as its truth. Summarize your company’s story in 2–3 sentences, then list any <span class="font-bold text-blue-700">uncertainties</span> or challenges honestly. <span class="italic">(Loaners value candor, not bluffing.)</span></div>
-      <textarea required rows="3" class="w-full border p-2 rounded mb-2" placeholder="Craft your honest summary and note any risks or unknowns." id="honesty"></textarea>
-      <div class="flex justify-between"><button type="button" class="btnNav" onclick="prevSlide()">Back</button><button type="button" class="btnNav-primary" onclick="nextSlide()">Next</button></div>
-    </section>
-    <!-- Preview & Download -->
-    <section class="slide" data-slide>
-      <h2 class="text-xl font-bold text-blue-700 mb-1">Preview & Download</h2>
-      <div class="mb-4 text-blue-600">Check your full business plan below. Download as PDF or Word (docx).</div>
-      <div id="planPreview" class="rounded-lg border p-4 bg-blue-50 min-h-[240px] mb-4"></div>
-      <div class="flex flex-wrap gap-4">
-        <button type="button" class="px-4 py-2 bg-blue-500 text-white rounded-md font-semibold" onclick="downloadPDF()">Download PDF</button>
-        <button type="button" class="px-4 py-2 bg-blue-300 text-blue-800 rounded-md font-semibold" onclick="downloadWord()">Download Word</button>
-        <button type="button" class="btnNav" onclick="prevSlide()">Back</button>
-      </div>
-    </section>
-  </form>
+  <!-- =========================================================
+       SCRIPTS — Logic, State, Navigation, Exports
+       (kept tidy & commented)
+       ========================================================= -->
   <script>
-    // ===== Minimalist Style Helpers =====
-    document.querySelectorAll('.btnNav').forEach(el => el.className += " px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition-all");
-    document.querySelectorAll('.btnNav-primary').forEach(el => el.className += " px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all");
+    /* ========================
+       Global State
+       ======================== */
+    const totalSlides = 20;
+    let current = 0;
 
-    // ====== Animation Handling ======
-    function startWizard() {
-      document.getElementById('home').classList.remove('fade-in');
-      document.getElementById('home').classList.add('fade-out');
+    const state = {
+      productShort: "", productDetail: "",
+      customersShort: "", customersDetail: "",
+      futureCompany: "",
+      mission: "",
+      team: [], // {name, role, strengths}
+      legalType: "", legalState: "", legalCity: "",
+      industry: "", mrCustomers: "", advantages: "", regulations: "",
+      services: [],
+      pricing: [], // {role, rate}
+      lifecycle: "", ip: "", rnd: "",
+      growth: "", communicate: "", howToSell: ""
+    };
+
+    /* ========================
+       Element Refs
+       ======================== */
+    const wizardEl = document.getElementById('wizard');
+    const revealEl = document.getElementById('reveal');
+    const progressInner = document.getElementById('progressInner');
+
+    /* ========================
+       Home -> Wizard transition
+       ======================== */
+    document.getElementById('startBtn').addEventListener('click', () => {
+      // Big circular reveal animation
+      revealEl.classList.add('revealed');
       setTimeout(() => {
-        document.getElementById('home').classList.add('hidden');
-        document.getElementById('wizard').classList.remove('hidden');
-        setTimeout(()=>document.getElementById('wizard').classList.add('fade-in'),10);
-      }, 700);
+        document.querySelector('header').style.display = 'none';
+        wizardEl.classList.remove('hidden');
+        revealEl.classList.remove('revealed');
+        gtag('event', 'start_wizard');
+      }, 750);
+    });
+
+    /* ========================
+       Slide helpers
+       ======================== */
+    function show(i) {
+      document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+      const target = document.getElementById(`s-${i}`);
+      if (!target) return;
+      target.classList.add('active');
+      current = i;
+      const pct = Math.round((i) / (totalSlides - 1) * 100);
+      progressInner.style.width = pct + '%';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    // ====== Wizard Navigation ======
-    const slides = [...document.querySelectorAll('[data-slide]')];
-    let currentSlide = 0;
-    function showSlide(i) {
-      slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
-      document.getElementById('progressBar').style.width = (i/(slides.length-1))*100 + "%";
-      currentSlide = i;
-      if (i === slides.length-1) buildPreview();
-    }
-    function nextSlide() {
-      if (!validateSlide(currentSlide)) return;
-      showSlide(currentSlide+1);
-    }
-    function prevSlide() { showSlide(currentSlide-1);}
-    // ====== Data State ======
-    const state = {};
-    function validateSlide(i) {
-      const ids = ['company','market','regulations','services','ip','marketing','future','honesty'];
-      if(i>0 && i<=ids.length){
-        const ta = document.getElementById(ids[i-1]);
-        if(!ta.value.trim()){ ta.classList.add('border-red-400'); setTimeout(()=>ta.classList.remove('border-red-400'),800); ta.focus(); return false; }
-        state[ids[i-1]] = ta.value.trim();
+    function nextSlide(){ if (save(current)) show(current + 1); }
+    function prevSlide(){ show(Math.max(0, current - 1)); }
+
+    /* ========================
+       Save step data / minimal validation
+       ======================== */
+    function val(id){ const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+    function save(idx){
+      switch(idx){
+        case 1:
+          state.productShort = val('productShort');
+          state.productDetail = val('productDetail');
+          if(!state.productShort) return alert('Please add a short product sentence.'), false;
+          break;
+        case 2:
+          state.customersShort = val('customersShort');
+          state.customersDetail = val('customersDetail');
+          if(!state.customersShort) return alert('Please describe your target audience.'), false;
+          break;
+        case 3:
+          state.futureCompany = val('futureCompany'); break;
+        case 4:
+          state.mission = val('mission'); break;
+        case 5:
+          // team already synced via oninput
+          if(state.team.length === 0) addTeam(); // ensure at least one row for usability
+          break;
+        case 6:
+          state.legalType = val('legalType');
+          state.legalState = val('legalState');
+          state.legalCity = val('legalCity');
+          break;
+        case 7:
+          state.industry = val('industry'); break;
+        case 8:
+          state.mrCustomers = val('mrCustomers'); break;
+        case 9:
+          state.advantages = val('advantages'); break;
+        case 10:
+          state.regulations = val('regulations'); break;
+        case 11:
+          state.services = [...document.querySelectorAll('.svcChk:checked')].map(c => c.value);
+          if(state.services.length === 0) return alert('Please select at least one service.'), false;
+          break;
+        case 12:
+          // pricing table synced live
+          if(state.pricing.length === 0) return alert('Please include at least one pricing role.'), false;
+          break;
+        case 13:
+          state.lifecycle = val('lifecycle'); break;
+        case 14:
+          state.ip = val('ip'); break;
+        case 15:
+          state.rnd = val('rnd'); break;
+        case 16:
+          state.growth = val('growth'); break;
+        case 17:
+          state.communicate = val('communicate'); break;
+        case 18:
+          state.howToSell = val('howToSell'); break;
       }
       return true;
     }
-    // ====== Build Plan Preview ======
+
+    /* ========================
+       Team list (dynamic rows)
+       ======================== */
+    const teamList = document.getElementById('teamList');
+    function addTeam(prefill){
+      const idx = state.team.length;
+      const item = document.createElement('div');
+      item.className = 'card p-4 border border-baby-100';
+      item.innerHTML = `
+        <div class="grid md:grid-cols-3 gap-3">
+          <input class="border rounded-lg p-2" placeholder="Name" oninput="onTeamChange(${idx}, 'name', this.value)" value="${prefill?.name||''}"/>
+          <input class="border rounded-lg p-2" placeholder="Role" oninput="onTeamChange(${idx}, 'role', this.value)" value="${prefill?.role||''}"/>
+          <input class="border rounded-lg p-2" placeholder="Strengths/Notes" oninput="onTeamChange(${idx}, 'strengths', this.value)" value="${prefill?.strengths||''}"/>
+        </div>`;
+      teamList.appendChild(item);
+      state.team.push({ name: prefill?.name||'', role: prefill?.role||'', strengths: prefill?.strengths||'' });
+    }
+    function onTeamChange(i, key, v){ if(state.team[i]) state.team[i][key] = v; }
+
+    // Seed one sensible row for convenience
+    addTeam({ name: 'Rebecca Champ', role: 'Owner, Primary Consultant', strengths: 'PMP, public speaking, Ops' });
+
+    /* ========================
+       Services checklist
+       ======================== */
+    const defaultServices = [
+      'Business Process Reengineering Analysis',
+      'Office Management Analysis',
+      'On-Site Office Management Services',
+      'BPR Facilitation',
+      'Analytics',
+      'Change Management',
+      'Customer Relationship Management',
+      'Financial Performance',
+      'Operations Improvement',
+      'Risk Management'
+    ];
+    const svcBox = document.getElementById('svcBox');
+    function renderServices(){
+      svcBox.innerHTML = defaultServices.map(s =>
+        `<label class="flex items-center gap-2 text-sm card p-3">
+          <input type="checkbox" class="svcChk" value="${s}"/> ${s}
+        </label>`).join('');
+    }
+    renderServices();
+    function addCustomService(){
+      const inp = document.getElementById('svcCustom');
+      const v = inp.value.trim(); if(!v) return;
+      const label = document.createElement('label');
+      label.className = 'flex items-center gap-2 text-sm card p-3';
+      label.innerHTML = `<input type="checkbox" class="svcChk" value="${v}" checked/> ${v}`;
+      svcBox.appendChild(label);
+      inp.value = '';
+    }
+
+    /* ========================
+       Pricing table
+       ======================== */
+    const priceBody = document.getElementById('priceBody');
+    function renderPricing(){
+      priceBody.innerHTML = state.pricing.map((row, i) =>
+        `<tr class="border-t">
+          <td class="py-2 pr-3"><input class="border rounded-lg p-1.5 w-full" value="${row.role}" oninput="onPriceChange(${i}, 'role', this.value)"/></td>
+          <td class="py-2 pr-3"><input type="number" class="border rounded-lg p-1.5 w-32" value="${row.rate}" oninput="onPriceChange(${i}, 'rate', this.value)"/></td>
+          <td class="py-2"><button type="button" class="text-blush-700" onclick="removePrice(${i})">Remove</button></td>
+        </tr>`
+      ).join('');
+    }
+    function addPrice(){
+      const role = document.getElementById('priceRole').value.trim();
+      const rate = parseFloat(document.getElementById('priceRate').value);
+      if(!role || isNaN(rate)) return;
+      state.pricing.push({ role, rate });
+      renderPricing();
+      document.getElementById('priceRole').value = '';
+      document.getElementById('priceRate').value = '';
+    }
+    function onPriceChange(i, k, v){ if(state.pricing[i]) state.pricing[i][k] = k === 'rate' ? parseFloat(v||0) : v; }
+    function removePrice(i){ state.pricing.splice(i,1); renderPricing(); }
+
+    // Prefill suggested roles
+    [
+      ['Principal', 150],
+      ['Account Executive', 140],
+      ['Project Manager', 135],
+      ['Project Coordinator', 100],
+      ['Business Analyst', 90],
+      ['Process Analyst', 90],
+      ['Financial Analyst', 85],
+      ['Technologist', 75]
+    ].forEach(([role,rate]) => state.pricing.push({role, rate}));
+    renderPricing();
+
+    /* ========================
+       Build Preview
+       ======================== */
     function buildPreview(){
-      const p = state, escape = t => (t||'').replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");
+      const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+      const section = (title, body) => `
+        <div class="preview-section">
+          <h3 class="text-xl text-baby-900 font-serif">${title}</h3>
+          <div class="text-slate-700 leading-relaxed whitespace-pre-wrap">${body||'<em class="text-slate-400">No content</em>'}</div>
+        </div>`;
+
+      const teamHTML = state.team.length ? `
+        <ul class="list-disc pl-5">
+          ${state.team.map(t => `<li><strong>${esc(t.name)}</strong> — ${esc(t.role)}${t.strengths?`: ${esc(t.strengths)}`:''}</li>`).join('')}
+        </ul>` : '';
+
+      const servicesHTML = state.services.length ? `
+        <ul class="list-disc pl-5">
+          ${state.services.map(s => `<li>${esc(s)}</li>`).join('')}
+        </ul>` : '';
+
+      const pricingHTML = state.pricing.length ? `
+        <table class="w-full text-sm border border-slate-200 rounded overflow-hidden">
+          <thead class="bg-baby-100/60">
+            <tr><th class="text-left p-2">Role</th><th class="text-left p-2">Rate ($/hr)</th></tr>
+          </thead>
+          <tbody>
+            ${state.pricing.map(p => `<tr class="border-t"><td class="p-2">${esc(p.role)}</td><td class="p-2">$${Number(p.rate||0).toFixed(0)}</td></tr>`).join('')}
+          </tbody>
+        </table>` : '';
+
+      const legalLine = [state.legalType, state.legalCity, state.legalState].filter(Boolean).join(' • ');
+
       document.getElementById('planPreview').innerHTML = `
-        <h2 class="text-xl font-bold text-blue-700 mb-2">Business Plan</h2>
-        <div class="mb-2"><span class="font-semibold text-blue-800">1. Company Description:</span><br>${escape(p.company)}</div>
-        <div class="mb-2"><span class="font-semibold text-blue-800">2. Market Research:</span><br>${escape(p.market)}</div>
-        <div class="mb-2"><span class="font-semibold text-blue-800">3. Regulations:</span><br>${escape(p.regulations)}</div>
-        <div class="mb-2"><span class="font-semibold text-blue-800">4. Product/Service Line:</span><br>${escape(p.services)}</div>
-        <div class="mb-2"><span class="font-semibold text-blue-800">5. Intellectual Property & R&D:</span><br>${escape(p.ip)}</div>
-        <div class="mb-2"><span class="font-semibold text-blue-800">6. Marketing & Sales:</span><br>${escape(p.marketing)}</div>
-        <div class="mb-2"><span class="font-semibold text-blue-800">7. Future & Growth:</span><br>${escape(p.future)}</div>
-        <div class="mb-2"><span class="font-semibold text-blue-800">8. Honest Pitch:</span><br>${escape(p.honesty)}</div>
-        <div class="text-xs text-slate-500 text-right pt-2">Generated by SBA Logic</div>
+        <div class="preview-header">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <div class="kicker">Business Plan</div>
+              <h2 class="text-2xl md:text-3xl font-extrabold text-baby-900 font-serif">SBA Logic Draft</h2>
+            </div>
+            <div class="text-right text-xs text-slate-600">
+              <div>${legalLine || ''}</div>
+              <div class="mono">Generated locally — data not uploaded</div>
+            </div>
+          </div>
+        </div>
+
+        ${section('Product / Service', `${esc(state.productShort)}\n\n${esc(state.productDetail)}`)}
+        ${section('Customers', `${esc(state.customersShort)}\n\n${esc(state.customersDetail)}`)}
+        ${section('Future of the Company', esc(state.futureCompany))}
+        <div class="preview-section">
+          <h3 class="text-xl text-baby-900 font-serif">Company Description</h3>
+          <p class="mt-1"><strong>Mission Statement:</strong> ${esc(state.mission)||'<em class="text-slate-400">No mission set</em>'}</p>
+          ${teamHTML ? `<div class="mt-2"><strong>Principal Members</strong>${teamHTML}</div>` : ''}
+          <p class="mt-2"><strong>Legal Structure:</strong> ${esc(legalLine)}</p>
+        </div>
+        <div class="preview-section">
+          <h3 class="text-xl text-baby-900 font-serif">Market Research</h3>
+          <div class="mt-1"><strong>Industry</strong><div class="whitespace-pre-wrap">${esc(state.industry)}</div></div>
+          <div class="mt-2"><strong>Detailed Description of Customers</strong><div class="whitespace-pre-wrap">${esc(state.mrCustomers)}</div></div>
+          <div class="mt-2"><strong>Company Advantages</strong><div class="whitespace-pre-wrap">${esc(state.advantages)}</div></div>
+          <div class="mt-2"><strong>Regulations</strong><div class="whitespace-pre-wrap">${esc(state.regulations)}</div></div>
+        </div>
+        <div class="preview-section">
+          <h3 class="text-xl text-baby-900 font-serif">Service Line</h3>
+          <div class="mt-1"><strong>Services Include</strong>${servicesHTML||''}</div>
+          <div class="mt-2"><strong>Pricing Structure</strong>${pricingHTML||''}</div>
+          <div class="mt-2"><strong>Product Lifecycle</strong><div class="whitespace-pre-wrap">${esc(state.lifecycle)}</div></div>
+          <div class="mt-2"><strong>Intellectual Property Rights</strong><div class="whitespace-pre-wrap">${esc(state.ip)}</div></div>
+          <div class="mt-2"><strong>Research and Development</strong><div class="whitespace-pre-wrap">${esc(state.rnd)}</div></div>
+        </div>
+        <div class="preview-section">
+          <h3 class="text-xl text-baby-900 font-serif">Marketing & Sales</h3>
+          <div class="mt-1"><strong>Growth Strategy</strong><div class="whitespace-pre-wrap">${esc(state.growth)}</div></div>
+          <div class="mt-2"><strong>Communicate with the Customer</strong><div class="whitespace-pre-wrap">${esc(state.communicate)}</div></div>
+          <div class="mt-2"><strong>How to Sell</strong><div class="whitespace-pre-wrap">${esc(state.howToSell)}</div></div>
+        </div>
+
+        <div class="preview-section text-xs text-slate-500">
+          <strong>Integrity Statement:</strong> This plan reflects your best understanding as of today. Avoid overstating traction or financials. Clear risks + mitigation increase trust.
+        </div>
       `;
     }
-    // ====== PDF Download ======
-    async function downloadPDF() {
-      const preview = document.getElementById('planPreview');
-      const canvas = await html2canvas(preview, {scale:2, useCORS:true});
-      const imgData = canvas.toDataURL("image/png");
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({unit:'pt',format:'a4'});
-      const width = pdf.internal.pageSize.getWidth();
-      const height = canvas.height * (width / canvas.width);
-      pdf.addImage(imgData,"PNG",0,0,width,height);
-      pdf.save("Business_Plan.pdf");
+
+    function buildPreviewAndNext(){
+      if(!save(18)) return;
+      buildPreview();
+      show(19);
+      gtag('event', 'preview_built');
     }
-    // ====== Word Download ======
-    function downloadWord() {
-      const preview = document.getElementById('planPreview').innerHTML;
-      const header = "<html><head><meta charset='utf-8'><title>Business Plan</title></head><body>";
-      const footer = "</body></html>";
-      const blob = new Blob([header+preview+footer],{type:"application/msword"});
+
+    /* ========================
+       Export: PDF
+       ======================== */
+    async function exportPDF(){
+      const btn = document.getElementById('btnPDF');
+      btn.disabled = true;
+      try{
+        const node = document.getElementById('planPreview');
+        const canvas = await html2canvas(node, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        // Fit to A4 portrait (595 x 842 pt)
+        const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        const imgWidth = pageWidth - 40; // margins
+        const imgHeight = canvas.height * (imgWidth / canvas.width);
+
+        let y = 20;
+        let remaining = imgHeight;
+        let position = y;
+
+        pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+        remaining -= pageHeight;
+
+        while (remaining > 0) {
+          pdf.addPage();
+          position -= pageHeight;
+          pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+          remaining -= pageHeight;
+        }
+
+        pdf.save('SBA_Logic_Business_Plan.pdf');
+        gtag('event', 'export_pdf');
+      } catch(err){
+        console.error(err);
+        alert('PDF export failed. Try again in Chrome/Edge.');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    /* ========================
+       Export: Word (.doc)
+       (Simple HTML-in-Doc technique for MVP)
+       ======================== */
+    function exportDOC(){
+      // Rebuild preview HTML into clean document content
+      buildPreview();
+      const content = document.getElementById('planPreview').innerHTML;
+      const docHTML = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head><meta charset='utf-8'><title>SBA Logic Plan</title></head>
+        <body>${content}</body></html>`;
+      const blob = new Blob(['\ufeff', docHTML], { type: 'application/msword' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = "Business_Plan.doc"; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      const link = document.createElement('a');
+      link.href = url; link.download = 'SBA_Logic_Business_Plan.doc';
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      gtag('event', 'export_doc');
     }
+
+    /* ========================
+       Init view-in animations
+       ======================== */
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in-view'); });
+    }, { threshold: .1 });
+    document.querySelectorAll('[data-animate]').forEach(el => io.observe(el));
+
+    /* ========================
+       Accessibility: arrow nav (optional MVP nicety)
+       ======================== */
+    document.addEventListener('keydown', (e) => {
+      if (wizardEl.classList.contains('hidden')) return;
+      if (e.key === 'ArrowRight') nextSlide();
+      if (e.key === 'ArrowLeft') prevSlide();
+    });
   </script>
 </body>
 </html>
